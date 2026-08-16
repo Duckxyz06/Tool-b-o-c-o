@@ -1,0 +1,1011 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Lịch phân ca</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  :root{
+    --navy:#1F4E78;
+    --ink:#171717;
+    --muted:#737373;
+    --faint:#a3a3a3;
+    --line:#e5e5e5;
+    --bg:#fafafa;
+    --scan-bg:#e0edff; --scan-tx:#1d4ed8; --scan-dot:#3b82f6;
+    --xuly-bg:#fff2df; --xuly-tx:#b45309; --xuly-dot:#f59e0b;
+    --nhap-bg:#dcfce7; --nhap-tx:#15803d; --nhap-dot:#22c55e;
+    --qc-bg:#f2e6ff; --qc-tx:#7e22ce; --qc-dot:#a855f7;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Roboto,sans-serif;}
+  button{font-family:inherit;cursor:pointer;}
+  input,textarea{font-family:inherit;}
+
+  /* header */
+  .topbar{position:sticky;top:0;z-index:20;background:#fff;border-bottom:1px solid var(--line);}
+  .topbar-inner{max-width:1400px;margin:0 auto;padding:16px 24px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;}
+  .title{font-size:20px;font-weight:700;margin:0;}
+  .subtitle{font-size:13px;color:var(--muted);margin:2px 0 0;}
+  .save-badge{transition:opacity .2s;opacity:0;}
+  .save-badge.show{opacity:1;}
+  .btn{display:inline-flex;align-items:center;gap:6px;padding:8px 12px;border-radius:8px;font-size:14px;font-weight:500;border:1px solid transparent;transition:.15s;}
+  .btn-dark{background:var(--ink);color:#fff;}
+  .btn-dark:hover{background:#404040;}
+  .btn-outline{background:#fff;border-color:#d4d4d4;color:#404040;}
+  .btn-outline:hover{border-color:#a3a3a3;}
+  .btn-green{background:#059669;color:#fff;}
+  .btn-green:hover{background:#047857;}
+  .btn-red{background:#dc2626;color:#fff;}
+  .btn-red:hover{background:#b91c1c;}
+  .btn:disabled{opacity:.4;cursor:not-allowed;}
+  .header-actions{display:flex;gap:8px;flex-wrap:wrap;}
+
+  .tabs{max-width:1400px;margin:0 auto;padding:0 24px;display:flex;gap:4px;}
+  .tab-btn{display:flex;align-items:center;gap:6px;padding:10px 14px;font-size:14px;font-weight:500;border:none;background:none;border-bottom:2px solid transparent;color:var(--faint);}
+  .tab-btn.active{color:var(--ink);border-color:var(--ink);}
+  .tab-btn:hover:not(.active){color:#525252;}
+
+  .container{max-width:1400px;margin:0 auto;padding:20px 24px 60px;}
+
+  /* schedule table */
+  .card{background:#fff;border:1px solid var(--line);border-radius:12px;overflow:hidden;}
+  table{width:100%;border-collapse:collapse;font-size:13px;}
+  thead.grid-head th{background:var(--navy);color:#fff;padding:8px;font-weight:600;font-size:12px;position:relative;}
+  .day-remove{margin-left:6px;opacity:0;transition:opacity .15s;vertical-align:middle;background:none;border:none;color:#fff;font-size:12px;padding:0;}
+  th:hover .day-remove{opacity:.75;}
+  .day-remove:hover{opacity:1 !important;}
+  tbody tr{border-bottom:1px solid #f5f5f5;vertical-align:top;}
+  tbody td{padding:6px;}
+  .stt{text-align:center;color:var(--faint);font-size:12px;}
+  .name-input{width:100%;font-size:13px;font-weight:500;color:var(--ink);background:transparent;border:none;outline:none;border-radius:4px;padding:3px 4px;}
+  .name-input:focus{background:#f5f5f5;}
+  .pos-input, .note-input{width:100%;font-size:12px;color:#525252;background:transparent;border:none;outline:none;border-radius:4px;padding:3px 4px;resize:none;}
+  .pos-input:focus, .note-input:focus{background:#f5f5f5;}
+  .del-staff-btn{color:#d4d4d4;background:none;border:none;font-size:15px;}
+  .del-staff-btn:hover{color:#ef4444;}
+
+  .day-cell-btn{width:100%;min-height:64px;text-align:left;padding:8px;border-radius:8px;border:1px solid var(--line);background:#fff;font-size:11px;line-height:1.35;}
+  .day-cell-btn:hover{border-color:#a3a3a3;}
+  .day-cell-btn.off{background:#f5f5f5;border-color:#e5e5e5;color:#a3a3a3;}
+  .day-cell-btn.empty{border-style:dashed;color:#d4d4d4;}
+  .off-label{font-size:11px;font-weight:600;letter-spacing:.03em;}
+  .slot-line{display:flex;gap:5px;align-items:flex-start;margin-bottom:2px;}
+  .slot-dot{width:6px;height:6px;border-radius:50%;margin-top:4px;flex-shrink:0;}
+  .slot-time{color:#737373;}
+  .slot-task{margin-left:3px;padding:1px 4px;border-radius:4px;font-weight:500;}
+
+  /* summary table */
+  .summary-day{font-weight:600;color:#404040;text-align:center;}
+  .summary-ca{text-align:center;color:#525252;}
+  .count-pill{display:inline-flex;align-items:center;justify-content:center;min-width:24px;padding:2px 6px;border-radius:6px;font-weight:600;font-size:12px;}
+  .count-zero{color:#d4d4d4;}
+  tr.morning-row{background:#fafafa;}
+
+  /* attendance */
+  .day-picker{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px;}
+  .day-pill{padding:7px 12px;border-radius:8px;font-size:13px;font-weight:500;border:1px solid var(--line);background:#fff;color:#525252;}
+  .day-pill.active{background:var(--ink);color:#fff;border-color:var(--ink);}
+  .day-pill:hover:not(.active){border-color:#a3a3a3;}
+  .att-toolbar{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;margin-bottom:16px;}
+  thead.plain-head th{background:#f5f5f5;color:#525252;padding:8px;font-weight:600;font-size:12px;text-align:left;}
+  .att-time-input{width:100%;font-size:12px;background:#f5f5f5;border:1px solid transparent;border-radius:6px;padding:5px 8px;outline:none;}
+  .att-time-input:focus{background:#fff;border-color:#d4d4d4;}
+  input[type=checkbox]{width:16px;height:16px;accent-color:#059669;cursor:pointer;}
+
+  /* modal */
+  .overlay{position:fixed;inset:0;background:rgba(0,0,0,.3);display:flex;align-items:center;justify-content:center;z-index:50;padding:16px;}
+  .modal{background:#fff;border-radius:12px;box-shadow:0 20px 50px rgba(0,0,0,.2);width:100%;max-width:400px;padding:20px;}
+  .modal-head{display:flex;align-items:center;justify-content:between;justify-content:space-between;margin-bottom:12px;}
+  .modal-head h3{margin:0;font-size:15px;font-weight:600;display:flex;align-items:center;gap:6px;}
+  .close-x{background:none;border:none;font-size:18px;color:#a3a3a3;line-height:1;}
+  .close-x:hover{color:#404040;}
+  .field{margin-bottom:12px;}
+  .field label{font-size:12px;font-weight:500;color:#737373;display:block;margin-bottom:4px;}
+  .field input[type=text], .field input[type=date], .field textarea{width:100%;font-size:13px;border:1px solid #e5e5e5;border-radius:8px;padding:7px 10px;outline:none;}
+  .field input:focus, .field textarea:focus{border-color:#a3a3a3;}
+  .field textarea{font-family:ui-monospace,monospace;resize:vertical;}
+  .hint{font-size:11px;color:#a3a3a3;margin-top:6px;}
+  .modal-footer{display:flex;justify-content:flex-end;gap:8px;margin-top:16px;}
+  .off-toggle{padding:5px 10px;border-radius:6px;font-size:12px;font-weight:600;border:1px solid #d4d4d4;background:#fff;color:#737373;}
+  .off-toggle.active{background:var(--ink);color:#fff;border-color:var(--ink);}
+  .warn-title{display:flex;align-items:center;gap:8px;color:#dc2626;margin-bottom:8px;}
+  .warn-title h3{margin:0;font-size:15px;font-weight:600;}
+  .modal p{font-size:13px;color:#737373;line-height:1.5;}
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script>
+/* ================================================================ */
+/* Constants & seed data (parsed from the uploaded workbook)         */
+/* ================================================================ */
+
+const INITIAL_DAYS = [
+  { key: "d1", label: "T2", date: "17/8" },
+  { key: "d2", label: "T3", date: "18/8" },
+  { key: "d3", label: "T4", date: "19/8" },
+  { key: "d4", label: "T5", date: "20/8" },
+  { key: "d5", label: "T6", date: "21/8" },
+  { key: "d6", label: "T7", date: "22/8" },
+  { key: "d7", label: "CN", date: "23/8" },
+];
+const WEEKDAY_LABELS = ["CN", "T2", "T3", "T4", "T5", "T6", "T7"];
+function labelForDate(dateStr){
+  if(!dateStr) return {label:"",date:""};
+  const [y,m,d] = dateStr.split("-").map(Number);
+  const dt = new Date(y, m-1, d);
+  return { label: WEEKDAY_LABELS[dt.getDay()], date: `${d}/${m}` };
+}
+
+const TASKS = ["Scan", "Xử lý", "Nhập liệu", "QC"];
+const TASK_COLOR = {
+  "Scan": {bgv:"var(--scan-bg)", txv:"var(--scan-tx)", dotv:"var(--scan-dot)"},
+  "Xử lý": {bgv:"var(--xuly-bg)", txv:"var(--xuly-tx)", dotv:"var(--xuly-dot)"},
+  "Nhập liệu": {bgv:"var(--nhap-bg)", txv:"var(--nhap-tx)", dotv:"var(--nhap-dot)"},
+  "QC": {bgv:"var(--qc-bg)", txv:"var(--qc-tx)", dotv:"var(--qc-dot)"},
+};
+const DEFAULT_NOTE = "Không thêm ca; chỉ phân lại công việc trong ca rảnh";
+
+function slotLines(text){
+  if(!text) return [];
+  return text.split("\n").map(s=>s.trim()).filter(Boolean);
+}
+
+const seedStaff = [
+  ["Hảo","Scan","",["8h - 12h — Scan\n13h - 17h — Scan\n18h- 21h — Scan","8h - 12h — Scan\n13h - 17h — Scan\n18h- 21h — Scan","8h - 12h — Scan\n13h - 17h — Scan\n18h- 21h — Scan","8h - 12h — Scan\n13h - 17h — Scan\n18h- 21h — Scan","8h - 12h — Scan\n13h - 17h — Scan\n18h- 21h — Scan","8h - 12h — Scan\n13h - 17h — Scan\n18h- 21h — Scan","8h - 12h — Scan\n13h- 17h — Scan"]],
+  ["Cường","17/8: Scan → 18/8 trở đi: Nhập liệu","17/8 vẫn giữ scan\n18/8 bắt đầu nhập liệu\n (A. Hiếu train)",["8h - 12h — Scan\n13h - 17h — Scan\n17h- 19h — Scan","8h - 12h — Nhập liệu\n13h - 17h — Nhập liệu\n17h- 19h — Nhập liệu","8h - 12h — Nhập liệu\n13h - 17h — Nhập liệu\n18h- 21h — Nhập liệu","8h - 12h — Nhập liệu\n13h - 17h — Nhập liệu\n17h- 19h — Nhập liệu","8h - 12h — Nhập liệu\n13h - 17h — Nhập liệu\n18h- 21h — Nhập liệu","8h - 12h — Nhập liệu\n13h - 17h — Nhập liệu","8h - 12h — Nhập liệu\n13h - 17h — Nhập liệu"]],
+  ["Hoàng Kha","Scan","",["8h - 12h — Scan\n13h - 17h — Scan\n17h- 19h — Scan","8h - 12h — Scan\n13h - 17h — Scan\n17h- 19h — Scan","8h - 12h — Scan\n13h - 17h — Scan\n17h- 19h — Scan","8h - 12h — Scan\n13h - 17h — Scan\n17h- 19h — Scan","8h - 12h — Scan\n13h - 17h — Scan\n17h- 19h — Scan","8h - 12h — Scan\n13h - 17h — Scan\n17h- 19h — Scan","OFF"]],
+  ["Đỉnh","Scan","",["8h - 12h — Scan\n13h - 17h — Scan\n17h- 19h — Scan","8h - 12h — Scan\n13h - 17h — Scan\n17h- 19h — Scan","8h - 12h — Scan\n13h - 17h — Scan\n17h- 19h — Scan","8h - 12h — Scan\n13h - 17h — Scan\n17h- 19h — Scan","8h - 12h — Scan\n13h - 17h — Scan\n17h- 19h — Scan","8h - 12h — Scan\n13h - 17h — Scan\n17h- 19h — Scan","OFF"]],
+  ["Tiến Đạt","Xử lý","",["8h - 12h — Xử lý\n13h - 17h — Xử lý\n17h- 20h — Xử lý","8h - 12h — Xử lý\n13h - 17h — Xử lý\n17h- 20h — Xử lý","8h - 12h — Xử lý\n13h - 17h — Xử lý\n17h- 20h — Xử lý","8h - 12h — Xử lý\n13h - 17h — Xử lý\n17h- 20h — Xử lý","8h - 12h — Xử lý\n13h - 17h — Xử lý\n17h- 20h — Xử lý","8h - 12h — Xử lý\n13h - 17h — Xử lý","OFF"]],
+  ["Trân","Dự phòng Scan","",["9h - 13h — Scan\n13h - 17h — Scan\n17h- 19h — Scan","OFF","OFF","OFF","OFF","OFF","OFF"]],
+  ["Thảo Nguyên","Xử lý","",["8h - 12h — Xử lý\n13h - 17h — Xử lý\n17h- 19h — Xử lý","8h - 12h — Xử lý\n13h - 17h — Xử lý\n17h- 19h — Xử lý","8h - 12h — Xử lý\n13h - 17h — Xử lý\n18h- 21h — Xử lý","8h - 12h — Xử lý\n13h - 17h — Xử lý\n18h- 21h — Xử lý","8h - 12h — Xử lý\n13h - 17h — Xử lý\n18h- 21h — Xử lý","8h - 12h — Xử lý\n13h - 17h — Xử lý\n18h- 21h — Xử lý","8h - 12h — Xử lý\n13h - 17h — Xử lý\n18h- 21h — Xử lý"]],
+  ["Trọng Kha","Scan","Đi làm \ncó thể ưu tiên slot scan cho ngkh",["13h - 17h — Scan","13h - 17h — Scan","13h - 17h — Scan","13h - 17h — Scan","13h - 17h — Scan","OFF","OFF"]],
+  ["Nguyễn Việt Đức","Nhập liệu/scan","tùy tình 17/8 sẽ scan/nhập liệu\n18/8 A. Hiếu training nhập liệu",["18h-21h — Xử lý","OFF","OFF","OFF","17h-21h — Xử lý","17h-21h — Xử lý","17h-21h — Xử lý"]],
+  ["Trần Nhựt Quy","Dự phòng Scan","",["17h-21h — Scan","8h-12h — Scan","8h-12h — Scan","13h- 21h — Scan","17h-21h — Scan","17h-21h — Scan","8h-12h — Scan"]],
+  ["Phi Long","QC / Xử lý","",["8h - 12h — QC\n13h - 17h — QC\n17h- 21h — QC","13h - 17h — QC\n17h- 21h — QC","8h - 12h — QC\n13h - 17h — QC\n17h-21h — QC","OFF","10h - 12h — QC\n13h - 17h — QC\n17h- 21h — QC","8h - 12h — QC\n13h - 17h — QC\n17h-21h — QC","8h - 12h — QC\n13h - 17h — QC\n17h-21h — QC"]],
+  ["Thuý Ngân","Xử lý","",["8h - 12h — Xử lý\n13h - 17h — Xử lý","8h - 12h — Xử lý\n13h - 17h — Xử lý\n17h-19h — Xử lý","OFF","OFF","OFF","OFF","OFF"]],
+  ["Ngọc Hà","Xử lý","",["8h - 12h — Xử lý\n13h - 17h — Xử lý","8h - 12h — Xử lý\n13h - 17h — Xử lý","8h - 12h — Xử lý\n13h - 17h — Xử lý","8h - 14h — Xử lý","8h - 12h — Xử lý\n13h - 17h — Xử lý","8h - 12h — Xử lý\n13h - 17h — Xử lý","8h - 12h — Xử lý\n13h - 17h — Xử lý"]],
+  ["Cẩm Ly","QC / Xử lý","",["8h-12h — QC\n14h-20h — QC","8h-12h — QC\n14h-20h — QC","8h-12h — QC\n14h-20h20 — QC","8h-12h — QC\n14h-20h — QC","8h-12h — QC\n14h-20h — QC","8h-12h — QC\n14h-19h — QC","ĐANG DEAL — QC"]],
+  ["Lê Anh Thư","Xử lý","",["8h - 12h — Xử lý\n13h - 17h — Xử lý\n17h- 21h — Xử lý","8h - 12h — Xử lý\n13h - 17h — Xử lý\n17h-21h — Xử lý","8h - 12h — Xử lý\n13h - 17h — Xử lý\n17h- 21h — Xử lý","8h - 12h — Xử lý\n13h - 17h — Xử lý\n17h- 21h — Xử lý","8h - 12h — Xử lý\n13h - 17h — Xử lý\n17h- 21h — Xử lý","8h - 12h — Xử lý\n13h - 17h — Xử lý\n17h- 21h — Xử lý","8h - 12h — Xử lý\n13h - 17h — Xử lý\n17h- 21h — Xử lý"]],
+  ["Nguyễn Thiện Duy","Scan / Xử lý","",["8h - 12h — Xử lý\n13h - 17h — Xử lý\n17h- 21h — Xử lý","13h - 17h — Xử lý\n17h- 21h — Xử lý","8h - 12h — Xử lý\n13h - 17h — Xử lý\n17h- 21h — Xử lý","13h - 17h — Xử lý\n17h- 21h — Xử lý","8h - 12h — Xử lý\n13h - 17h — Xử lý\n17h- 21h — Xử lý","OFF","8h - 12h — Xử lý\n13h - 17h — Xử lý\n17h- 21h — Xử lý"]],
+  ["Lê Hồng Phúc","Xử lý","",["13h-17h — Xử lý\n18h-21h — Xử lý","OFF","13h-17h — Xử lý\n18h-21h — Xử lý","13h-17h — Xử lý\n18h-21h — Xử lý","13h-17h — Xử lý\n18h-21h — Xử lý","13h-17h — Xử lý\n18h-21h — Xử lý","13h-17h — Xử lý\n18h-21h — Xử lý"]],
+  ["Nguyễn Hoàng Luân","Xử lý (Lap cá nhân)","",["OFF","OFF","8h - 12h — Xử lý\n13h - 17h — Xử lý\n17h- 21h — Xử lý","8h - 12h — Xử lý\n13h - 17h — Xử lý\n18h-21h — Xử lý","8h - 12h — Xử lý\n13h - 17h — Xử lý\n17h-21h — Xử lý","OFF","OFF"]],
+  ["Nguyễn Phú Trọng","Xử lý (Lap cá nhân)","",["OFF","OFF","13h-17h — Xử lý\n17h- 21h — Xử lý","8h - 12h — Xử lý\n13h - 17h — Xử lý\n17h-21h — Xử lý","8h - 12h — Xử lý\n13h - 17h — Xử lý\n17h-21h — Xử lý","8h - 12h — Xử lý\n13h - 17h — Xử lý\n17h-21h — Xử lý","OFF"]],
+  ["Lê Thanh Tú","Xử lý (Lap cá nhân)","",["8h - 12h — Xử lý\n13h - 17h — Xử lý","8h - 12h — Xử lý\n13h - 17h — Xử lý","8h - 12h — Xử lý\n13h - 17h — Xử lý","8h - 12h — Xử lý\n13h - 17h — Xử lý","8h-13h — Xử lý","8h - 12h — Xử lý\n13h - 17h — Xử lý","13h-21h — Xử lý"]],
+  ["Phạm Quốc Toàn","Xử lý","",["13h - 17h — Xử lý\n17h-21h — Xử lý","13h - 17h — Xử lý\n17h-21h — Xử lý","8h - 12h — Xử lý\n13h - 17h — Xử lý\n17h-21h — Xử lý","8h - 12h — Xử lý\n13h - 17h — Xử lý\n17h-21h — Xử lý","8h - 12h — Xử lý\n13h - 17h — Xử lý\n17h-21h — Xử lý","8h - 12h — Xử lý\n13h - 17h — Xử lý\n17h-21h — Xử lý","18h-21h — Xử lý"]],
+  ["Chí Vĩnh","17/8: Xử lý → 18/8 trở đi: Nhập liệu","17/8 tạm cho xử lý\n18/8 nhập liệu",["8h - 12h — Xử lý\n13h - 17h — Xử lý\n17h-21h — Xử lý","8h - 12h — Nhập liệu\n13h - 17h — Nhập liệu\n17h-21h — Nhập liệu","8h - 12h — Nhập liệu\n13h - 17h — Nhập liệu\n17h-21h — Nhập liệu","8h - 12h — Nhập liệu\n13h - 17h — Nhập liệu\n17h-21h — Nhập liệu","8h - 12h — Nhập liệu\n13h - 17h — Nhập liệu\n17h-21h — Nhập liệu","8h - 12h — Nhập liệu\n13h - 17h — Nhập liệu\n17h-21h — Nhập liệu","8h - 12h — Nhập liệu\n13h - 17h — Nhập liệu\n17h-21h — Nhập liệu"]],
+  ["Hoàng Lãm","","ch rep",["","","","","","",""]],
+];
+
+function buildInitialStaff(){
+  return seedStaff.map((row,i)=>{
+    const [name,position,note,dayVals] = row;
+    const days = {};
+    INITIAL_DAYS.forEach((d,idx)=>{
+      const raw = dayVals[idx];
+      days[d.key] = raw === "OFF" ? "OFF" : slotLines(raw);
+    });
+    return { id:`s${i+1}`, name, position, note, days };
+  });
+}
+function buildInitialWeekNotes(){
+  const notes = {};
+  INITIAL_DAYS.forEach(d=>{
+    ["Sáng","Chiều","Tối"].forEach(ca=>{ notes[`${d.key}_${ca}`] = DEFAULT_NOTE; });
+  });
+  return notes;
+}
+
+function parseSlot(line){
+  const parts = line.split("—");
+  const time = (parts[0]||"").trim();
+  const task = parts.length>1 ? parts.slice(1).join("—").trim() : "";
+  const m = time.match(/(\d{1,2})\s*h/);
+  const startHour = m ? parseInt(m[1],10) : null;
+  let ca = null;
+  if(startHour!==null){
+    if(startHour<13) ca="Sáng"; else if(startHour<17) ca="Chiều"; else ca="Tối";
+  }
+  return { time, task, startHour, ca };
+}
+function isKnownTask(t){ return TASKS.includes(t); }
+
+function computeSummary(staff, weekNotes, days){
+  const rows = [];
+  days.forEach(d=>{
+    ["Sáng","Chiều","Tối"].forEach(ca=>{
+      const counts = {Scan:0,"Xử lý":0,"Nhập liệu":0,QC:0};
+      staff.forEach(p=>{
+        const val = p.days[d.key];
+        if(!val || val==="OFF") return;
+        val.forEach(line=>{
+          const {task, ca:lineCa} = parseSlot(line);
+          if(lineCa===ca && isKnownTask(task)) counts[task]+=1;
+        });
+      });
+      rows.push({ dayKey:d.key, dayLabel:`${d.label} ${d.date}`, ca, counts, note: weekNotes[`${d.key}_${ca}`] ?? DEFAULT_NOTE });
+    });
+  });
+  return rows;
+}
+
+/* ================================================================ */
+/* Persistence                                                       */
+/* ================================================================ */
+const STORAGE_KEY = "shift_scheduler_state_v1";
+async function loadState(){
+  try{
+    const res = await window.storage.get(STORAGE_KEY, false);
+    if(res && res.value) return JSON.parse(res.value);
+  }catch(e){}
+  return null;
+}
+async function saveState(state){
+  try{ await window.storage.set(STORAGE_KEY, JSON.stringify(state), false); return true; }
+  catch(e){ return false; }
+}
+
+/* ================================================================ */
+/* App state                                                         */
+/* ================================================================ */
+const app = {
+  staff: buildInitialStaff(),
+  weekNotes: buildInitialWeekNotes(),
+  attendance: {},
+  days: INITIAL_DAYS.slice(),
+  tab: "schedule",
+  attendanceDay: INITIAL_DAYS[0].key,
+  reportDay: INITIAL_DAYS[0].key,
+  zaloCopyStatus: "idle",
+  loaded: false,
+  saveStatus: "idle",
+  modal: null, // {type:'cell', staffId, dayKey} | {type:'addStaff'} | {type:'addDay'} | {type:'delStaff', id} | {type:'delDay', key}
+  cellDraft: "",
+  cellOff: false,
+  newStaff: {name:"", position:"", note:""},
+  newDay: {date:"", label:""},
+};
+
+let saveTimer = null;
+function scheduleSave(){
+  app.saveStatus = "saving";
+  renderSaveBadge();
+  if(saveTimer) clearTimeout(saveTimer);
+  saveTimer = setTimeout(async ()=>{
+    const ok = await saveState({staff:app.staff, weekNotes:app.weekNotes, attendance:app.attendance, days:app.days});
+    app.saveStatus = ok ? "saved" : "idle";
+    renderSaveBadge();
+    setTimeout(()=>{ app.saveStatus="idle"; renderSaveBadge(); }, 1500);
+  }, 500);
+}
+function renderSaveBadge(){
+  const el = document.getElementById("saveBadge");
+  if(!el) return;
+  el.classList.toggle("show", app.saveStatus!=="idle");
+  el.textContent = app.saveStatus==="saving" ? "Đang lưu..." : app.saveStatus==="saved" ? "Đã lưu" : "";
+}
+
+function attKey(staffId,dayKey,idx){ return `${staffId}|${dayKey}|${idx}`; }
+
+/* ================================================================ */
+/* Rendering                                                          */
+/* ================================================================ */
+function esc(s){
+  return (s??"").toString().replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+}
+
+function render(){
+  const root = document.getElementById("root");
+  root.innerHTML = `
+    <div class="topbar">
+      <div class="topbar-inner">
+        <div>
+          <h1 class="title">Lịch phân ca — ${esc(app.days[0]?.date||"")} → ${esc(app.days[app.days.length-1]?.date||"")}/2026</h1>
+          <p class="subtitle">${app.staff.length} nhân sự · <span id="saveBadge" class="save-badge"></span></p>
+        </div>
+        <div class="header-actions">
+          <button class="btn btn-outline" data-action="open-add-day">+ Thêm ngày</button>
+          <button class="btn btn-dark" data-action="open-add-staff">+ Thêm nhân sự</button>
+          <button class="btn btn-green" data-action="export-excel">⬇ Xuất Excel</button>
+        </div>
+      </div>
+      <div class="tabs">
+        ${tabBtn("schedule","Lịch phân ca")}
+        ${tabBtn("summary","Tổng hợp")}
+        ${tabBtn("attendance","Chấm công")}
+        ${tabBtn("zalo","Báo cáo Zalo")}
+      </div>
+    </div>
+    <div class="container">
+      ${app.tab==="schedule" ? renderScheduleTab() : ""}
+      ${app.tab==="summary" ? renderSummaryTab() : ""}
+      ${app.tab==="attendance" ? renderAttendanceTab() : ""}
+      ${app.tab==="zalo" ? renderZaloTab() : ""}
+    </div>
+    ${renderModal()}
+  `;
+  renderSaveBadge();
+  attachEvents();
+}
+
+function tabBtn(id,label){
+  return `<button class="tab-btn ${app.tab===id?"active":""}" data-action="switch-tab" data-tab="${id}">${esc(label)}</button>`;
+}
+
+function renderDayCell(p,d){
+  const val = p.days[d.key];
+  const isOff = val==="OFF";
+  const lines = isOff ? [] : (val||[]);
+  let cls = "day-cell-btn";
+  let inner = "";
+  if(isOff){
+    cls += " off";
+    inner = `<span class="off-label">OFF</span>`;
+  } else if(lines.length===0){
+    cls += " empty";
+    inner = `<span>+ thêm ca</span>`;
+  } else {
+    inner = lines.map(line=>{
+      const {time,task} = parseSlot(line);
+      const c = TASK_COLOR[task];
+      return `<div class="slot-line">
+        <span class="slot-dot" style="background:${c?c.dotv:"#a3a3a3"}"></span>
+        <span><span class="slot-time">${esc(time)}</span>${task?`<span class="slot-task" style="background:${c?c.bgv:"#f5f5f5"};color:${c?c.txv:"#525252"}">${esc(task)}</span>`:""}</span>
+      </div>`;
+    }).join("");
+  }
+  return `<button class="${cls}" data-action="open-cell" data-staff="${p.id}" data-day="${d.key}">${inner}</button>`;
+}
+
+function renderScheduleTab(){
+  return `
+  <div class="card" style="overflow-x:auto;">
+    <table>
+      <thead class="grid-head">
+        <tr>
+          <th style="width:40px;">STT</th>
+          <th style="width:160px;">Nhân sự</th>
+          <th style="width:190px;">Vị trí phân công</th>
+          ${app.days.map(d=>`<th style="width:170px;">${esc(d.label)} ${esc(d.date)}<button class="day-remove" data-action="open-del-day" data-day="${d.key}" title="Xóa ngày này">✕</button></th>`).join("")}
+          <th style="width:210px;">Ghi chú</th>
+          <th style="width:36px;"></th>
+        </tr>
+      </thead>
+      <tbody>
+        ${app.staff.map((p,i)=>`
+          <tr data-staff-row="${p.id}">
+            <td class="stt">${i+1}</td>
+            <td><input class="name-input" data-field="name" data-staff="${p.id}" value="${esc(p.name)}" /></td>
+            <td><textarea class="pos-input" rows="2" data-field="position" data-staff="${p.id}">${esc(p.position)}</textarea></td>
+            ${app.days.map(d=>`<td>${renderDayCell(p,d)}</td>`).join("")}
+            <td><textarea class="note-input" rows="2" placeholder="—" data-field="note" data-staff="${p.id}">${esc(p.note)}</textarea></td>
+            <td style="text-align:center;"><button class="del-staff-btn" data-action="open-del-staff" data-staff="${p.id}" title="Xóa nhân sự">🗑</button></td>
+          </tr>
+        `).join("")}
+      </tbody>
+    </table>
+  </div>`;
+}
+
+function renderSummaryTab(){
+  const rows = computeSummary(app.staff, app.weekNotes, app.days);
+  return `
+  <div class="card">
+    <table>
+      <thead class="grid-head">
+        <tr>
+          <th>Ngày</th><th>Ca</th>
+          ${TASKS.map(t=>`<th>${esc(t)}</th>`).join("")}
+          <th style="text-align:left;">Ghi chú</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${rows.map(r=>`
+          <tr class="${r.ca==="Sáng"?"morning-row":""}">
+            <td class="summary-day">${r.ca==="Sáng"?esc(r.dayLabel):""}</td>
+            <td class="summary-ca">${esc(r.ca)}</td>
+            ${TASKS.map(t=>{
+              const c = TASK_COLOR[t]; const n = r.counts[t];
+              return `<td style="text-align:center;"><span class="count-pill ${n===0?"count-zero":""}" style="${n>0?`background:${c.bgv};color:${c.txv};`:""}">${n}</span></td>`;
+            }).join("")}
+            <td><input class="note-input" data-field="weeknote" data-key="${r.dayKey}_${r.ca}" value="${esc(r.note)}" /></td>
+          </tr>
+        `).join("")}
+      </tbody>
+    </table>
+  </div>`;
+}
+
+function renderAttendanceTab(){
+  const dayKey = app.attendanceDay;
+  const rowsHtml = app.staff.flatMap(p=>{
+    const val = p.days[dayKey];
+    if(!val || val==="OFF" || val.length===0) return [];
+    return val.map((line,idx)=>{
+      const {time,task} = parseSlot(line);
+      const c = TASK_COLOR[task];
+      const key = attKey(p.id,dayKey,idx);
+      const a = app.attendance[key] || {};
+      return `<tr>
+        <td style="font-weight:500;color:#262626;">${esc(p.name)}</td>
+        <td><span class="slot-time">${esc(time)}</span>${task?`<span class="slot-task" style="background:${c?c.bgv:"#f5f5f5"};color:${c?c.txv:"#525252"};margin-left:6px;">${esc(task)}</span>`:""}</td>
+        <td style="text-align:center;"><input type="checkbox" data-action="toggle-att" data-staff="${p.id}" data-day="${dayKey}" data-idx="${idx}" ${a.present?"checked":""} /></td>
+        <td><input class="att-time-input" placeholder="--:--" data-action="att-field" data-field="in" data-staff="${p.id}" data-day="${dayKey}" data-idx="${idx}" value="${esc(a.in||"")}" /></td>
+        <td><input class="att-time-input" placeholder="--:--" data-action="att-field" data-field="out" data-staff="${p.id}" data-day="${dayKey}" data-idx="${idx}" value="${esc(a.out||"")}" /></td>
+      </tr>`;
+    });
+  }).join("");
+
+  return `
+  <div class="att-toolbar">
+    <div class="day-picker">
+      ${app.days.map(d=>`<button class="day-pill ${app.attendanceDay===d.key?"active":""}" data-action="set-att-day" data-day="${d.key}">${esc(d.label)} ${esc(d.date)}</button>`).join("")}
+    </div>
+    <button class="btn" style="background:#ecfdf5;color:#047857;" data-action="mark-all-present">✓ Đánh dấu tất cả có mặt</button>
+  </div>
+  <div class="card">
+    <table>
+      <thead class="plain-head">
+        <tr><th style="width:180px;">Nhân sự</th><th>Ca làm</th><th style="width:80px;text-align:center;">Có mặt</th><th style="width:130px;">Giờ vào thực tế</th><th style="width:130px;">Giờ ra thực tế</th></tr>
+      </thead>
+      <tbody>${rowsHtml || `<tr><td colspan="5" style="padding:20px;text-align:center;color:#a3a3a3;">Không có ca làm nào trong ngày này</td></tr>`}</tbody>
+    </table>
+  </div>`;
+}
+
+/* ================================================================ */
+/* Zalo report                                                       */
+/* ================================================================ */
+const CA_DEFS = [
+  { key:"Sáng",  label:"Sáng (8h-12h)" },
+  { key:"Chiều", label:"Chiều (13h-17h)" },
+  { key:"Tối",   label:"Tối (18h-21h)" },
+];
+// Pulls a "(...)" note out of a position string, e.g. "Xử lý (Lap cá nhân)"
+// -> "(Lap cá nhân)", so it can be tacked onto the person's name in the report.
+function extractPositionSuffix(position){
+  if(!position) return "";
+  const m = position.match(/\(([^)]+)\)/);
+  return m ? `(${m[1]})` : "";
+}
+
+function buildZaloReport(dayKey){
+  const day = app.days.find(d=>d.key===dayKey);
+  if(!day) return "";
+  const lines = [`${day.label} ${day.date}`];
+  let anyCa = false;
+
+  CA_DEFS.forEach(({key:ca, label})=>{
+    const groups = {}; TASKS.forEach(t=>groups[t]=[]);
+    app.staff.forEach(p=>{
+      const val = p.days[day.key];
+      if(!val || val==="OFF") return;
+      val.forEach(line=>{
+        const { task, ca:lineCa } = parseSlot(line);
+        if(lineCa===ca && isKnownTask(task)){
+          const suffix = extractPositionSuffix(p.position);
+          const display = suffix ? `${p.name} ${suffix}` : p.name;
+          if(!groups[task].includes(display)) groups[task].push(display);
+        }
+      });
+    });
+    const hasAny = TASKS.some(t=>groups[t].length>0);
+    if(!hasAny) return;
+    anyCa = true;
+    lines.push("");
+    lines.push(label);
+    const note = app.weekNotes[`${day.key}_${ca}`];
+    if(note && note !== DEFAULT_NOTE) lines.push(`Ghi chú: ${note}`);
+    TASKS.forEach(t=>{
+      if(groups[t].length) lines.push(`${t}: ${groups[t].join(", ")}`);
+    });
+  });
+
+  if(!anyCa) lines.push("", "(Không có ai làm việc trong ngày này)");
+  return lines.join("\n");
+}
+
+function renderZaloTab(){
+  const dayKey = app.reportDay && app.days.some(d=>d.key===app.reportDay) ? app.reportDay : app.days[0]?.key;
+  const reportText = buildZaloReport(dayKey);
+  return `
+  <div class="att-toolbar">
+    <div class="day-picker">
+      ${app.days.map(d=>`<button class="day-pill ${dayKey===d.key?"active":""}" data-action="set-report-day" data-day="${d.key}">${esc(d.label)} ${esc(d.date)}</button>`).join("")}
+    </div>
+    <button class="btn ${app.zaloCopyStatus==="copied"?"btn-green":"btn-dark"}" data-action="copy-zalo-report">${app.zaloCopyStatus==="copied"?"✓ Đã copy":"📋 Copy báo cáo"}</button>
+  </div>
+  <div class="card" style="padding:18px 20px;">
+    <pre id="zaloReportText" style="white-space:pre-wrap;word-break:break-word;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:13px;line-height:1.7;color:#262626;margin:0;">${esc(reportText)}</pre>
+  </div>
+  <p class="hint" style="margin-top:10px;">Bấm "Copy báo cáo" rồi dán trực tiếp vào Zalo. Chỉ những ca/công việc có người phân công mới hiện ra.</p>`;
+}
+
+function renderModal(){
+  const m = app.modal;
+  if(!m) return "";
+  if(m.type==="cell"){
+    return `<div class="overlay" data-action="close-modal">
+      <div class="modal" data-stop>
+        <div class="modal-head"><h3>✎ Sửa ca làm</h3><button class="close-x" data-action="close-modal">✕</button></div>
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+          <button class="off-toggle ${app.cellOff?"active":""}" data-action="toggle-cell-off">OFF (nghỉ)</button>
+          <span style="font-size:11px;color:#a3a3a3;">hoặc nhập các ca bên dưới, mỗi dòng một ca</span>
+        </div>
+        ${!app.cellOff ? `<textarea id="cellDraftInput" rows="5" style="width:100%;font-size:13px;border:1px solid #e5e5e5;border-radius:8px;padding:8px 10px;outline:none;font-family:ui-monospace,monospace;" placeholder="8h - 12h — Scan&#10;13h - 17h — Xử lý">${esc(app.cellDraft)}</textarea>` : ""}
+        <p class="hint">Định dạng gợi ý: <code>giờ bắt đầu - giờ kết thúc — công việc</code> (Scan / Xử lý / Nhập liệu / QC)</p>
+        <div class="modal-footer">
+          <button class="btn" data-action="close-modal">Hủy</button>
+          <button class="btn btn-dark" data-action="save-cell">💾 Lưu</button>
+        </div>
+      </div>
+    </div>`;
+  }
+  if(m.type==="addStaff"){
+    return `<div class="overlay" data-action="close-modal">
+      <div class="modal" data-stop>
+        <div class="modal-head"><h3>+ Thêm nhân sự</h3><button class="close-x" data-action="close-modal">✕</button></div>
+        <div class="field"><label>Tên nhân sự</label><input type="text" id="newStaffName" value="${esc(app.newStaff.name)}" placeholder="Nguyễn Văn A" /></div>
+        <div class="field"><label>Vị trí phân công</label><input type="text" id="newStaffPos" value="${esc(app.newStaff.position)}" placeholder="Scan / Xử lý / Nhập liệu / QC" /></div>
+        <div class="field"><label>Ghi chú (tuỳ chọn)</label><input type="text" id="newStaffNote" value="${esc(app.newStaff.note)}" /></div>
+        <div class="modal-footer">
+          <button class="btn" data-action="close-modal">Hủy</button>
+          <button class="btn btn-dark" data-action="save-add-staff">+ Thêm</button>
+        </div>
+      </div>
+    </div>`;
+  }
+  if(m.type==="addDay"){
+    return `<div class="overlay" data-action="close-modal">
+      <div class="modal" data-stop>
+        <div class="modal-head"><h3>+ Thêm ngày vào lịch</h3><button class="close-x" data-action="close-modal">✕</button></div>
+        <div class="field"><label>Ngày</label><input type="date" id="newDayDate" value="${esc(app.newDay.date)}" /></div>
+        <div class="field"><label>Nhãn hiển thị (tuỳ chọn)</label><input type="text" id="newDayLabel" value="${esc(app.newDay.label)}" placeholder="vd: T2, CN, Lễ..." />
+          <p class="hint">Bỏ trống để tự động lấy thứ trong tuần từ ngày đã chọn.</p>
+        </div>
+        <div class="modal-footer">
+          <button class="btn" data-action="close-modal">Hủy</button>
+          <button class="btn btn-dark" data-action="save-add-day">+ Thêm ngày</button>
+        </div>
+      </div>
+    </div>`;
+  }
+  if(m.type==="delStaff"){
+    const p = app.staff.find(x=>x.id===m.id);
+    return `<div class="overlay" data-action="close-modal">
+      <div class="modal" data-stop>
+        <div class="warn-title"><span>⚠</span><h3>Xóa nhân sự?</h3></div>
+        <p>Toàn bộ lịch phân ca của <b>${esc(p?.name||"")}</b> trong tuần này sẽ bị xóa. Hành động không thể hoàn tác.</p>
+        <div class="modal-footer">
+          <button class="btn" data-action="close-modal">Hủy</button>
+          <button class="btn btn-red" data-action="confirm-del-staff" data-staff="${m.id}">🗑 Xóa</button>
+        </div>
+      </div>
+    </div>`;
+  }
+  if(m.type==="delDay"){
+    const d = app.days.find(x=>x.key===m.key);
+    return `<div class="overlay" data-action="close-modal">
+      <div class="modal" data-stop>
+        <div class="warn-title"><span>⚠</span><h3>Xóa ngày này khỏi lịch?</h3></div>
+        <p>Toàn bộ ca làm và dữ liệu chấm công của ngày <b>${esc(d?.label||"")} ${esc(d?.date||"")}</b> sẽ bị xóa. Hành động không thể hoàn tác.</p>
+        <div class="modal-footer">
+          <button class="btn" data-action="close-modal">Hủy</button>
+          <button class="btn btn-red" data-action="confirm-del-day" data-day="${m.key}">🗑 Xóa ngày</button>
+        </div>
+      </div>
+    </div>`;
+  }
+  return "";
+}
+
+/* ================================================================ */
+/* Event handling (delegated)                                        */
+/* ================================================================ */
+function attachEvents(){
+  const root = document.getElementById("root");
+
+  root.onclick = (e)=>{
+    const stopEl = e.target.closest("[data-stop]");
+    const overlay = e.target.closest(".overlay");
+    if(overlay && !stopEl?.contains(e.target) && e.target===overlay){
+      app.modal = null; render(); return;
+    }
+    const btn = e.target.closest("[data-action]");
+    if(!btn) return;
+    const action = btn.dataset.action;
+
+    switch(action){
+      case "switch-tab":
+        app.tab = btn.dataset.tab; render(); break;
+      case "open-add-staff":
+        app.newStaff = {name:"",position:"",note:""}; app.modal = {type:"addStaff"}; render();
+        setTimeout(()=>document.getElementById("newStaffName")?.focus(),0); break;
+      case "open-add-day":
+        app.newDay = {date:"",label:""}; app.modal = {type:"addDay"}; render();
+        setTimeout(()=>document.getElementById("newDayDate")?.focus(),0); break;
+      case "open-cell": {
+        const staffId = btn.dataset.staff, dayKey = btn.dataset.day;
+        const p = app.staff.find(x=>x.id===staffId);
+        const val = p.days[dayKey];
+        if(val==="OFF"){ app.cellOff = true; app.cellDraft = ""; }
+        else { app.cellOff = false; app.cellDraft = (val||[]).join("\n"); }
+        app.modal = {type:"cell", staffId, dayKey}; render();
+        setTimeout(()=>document.getElementById("cellDraftInput")?.focus(),0); break;
+      }
+      case "toggle-cell-off":
+        app.cellOff = !app.cellOff; render(); break;
+      case "save-cell": {
+        const {staffId, dayKey} = app.modal;
+        const draftEl = document.getElementById("cellDraftInput");
+        const draft = app.cellOff ? "" : (draftEl ? draftEl.value : app.cellDraft);
+        const p = app.staff.find(x=>x.id===staffId);
+        p.days[dayKey] = app.cellOff ? "OFF" : slotLines(draft);
+        app.modal = null; render(); scheduleSave(); break;
+      }
+      case "save-add-staff": {
+        const name = document.getElementById("newStaffName").value.trim();
+        if(!name) return;
+        const position = document.getElementById("newStaffPos").value.trim();
+        const note = document.getElementById("newStaffNote").value.trim();
+        const days = {}; app.days.forEach(d=>days[d.key]=[]);
+        app.staff.push({id:`s${Date.now()}`, name, position, note, days});
+        app.modal = null; render(); scheduleSave(); break;
+      }
+      case "save-add-day": {
+        const dateVal = document.getElementById("newDayDate").value;
+        if(!dateVal) return;
+        const labelVal = document.getElementById("newDayLabel").value.trim();
+        const {label,date} = labelForDate(dateVal);
+        const finalLabel = labelVal || label;
+        const key = `d${Date.now()}`;
+        app.days.push({key,label:finalLabel,date});
+        app.staff.forEach(p=>{ p.days[key] = []; });
+        ["Sáng","Chiều","Tối"].forEach(ca=>{ app.weekNotes[`${key}_${ca}`] = DEFAULT_NOTE; });
+        app.modal = null; render(); scheduleSave(); break;
+      }
+      case "open-del-staff":
+        app.modal = {type:"delStaff", id: btn.dataset.staff}; render(); break;
+      case "confirm-del-staff": {
+        const id = btn.dataset.staff;
+        app.staff = app.staff.filter(p=>p.id!==id);
+        app.modal = null; render(); scheduleSave(); break;
+      }
+      case "open-del-day":
+        app.modal = {type:"delDay", key: btn.dataset.day}; render(); break;
+      case "confirm-del-day": {
+        const key = btn.dataset.day;
+        app.days = app.days.filter(d=>d.key!==key);
+        app.staff.forEach(p=>{ delete p.days[key]; });
+        ["Sáng","Chiều","Tối"].forEach(ca=>{ delete app.weekNotes[`${key}_${ca}`]; });
+        if(app.attendanceDay===key && app.days.length) app.attendanceDay = app.days[0].key;
+        if(app.reportDay===key && app.days.length) app.reportDay = app.days[0].key;
+        app.modal = null; render(); scheduleSave(); break;
+      }
+      case "close-modal":
+        app.modal = null; render(); break;
+      case "set-att-day":
+        app.attendanceDay = btn.dataset.day; render(); break;
+      case "mark-all-present": {
+        const dayKey = app.attendanceDay;
+        app.staff.forEach(p=>{
+          const val = p.days[dayKey];
+          if(!val || val==="OFF") return;
+          val.forEach((_,idx)=>{
+            const key = attKey(p.id,dayKey,idx);
+            app.attendance[key] = {...(app.attendance[key]||{}), present:true};
+          });
+        });
+        render(); scheduleSave(); break;
+      }
+      case "export-excel":
+        exportExcel(); break;
+      case "set-report-day":
+        app.reportDay = btn.dataset.day; app.zaloCopyStatus = "idle"; render(); break;
+      case "copy-zalo-report": {
+        const dayKey = app.reportDay && app.days.some(d=>d.key===app.reportDay) ? app.reportDay : app.days[0]?.key;
+        const text = buildZaloReport(dayKey);
+        const markCopied = ()=>{ app.zaloCopyStatus = "copied"; render(); setTimeout(()=>{ app.zaloCopyStatus = "idle"; render(); }, 1800); };
+        if(navigator.clipboard && navigator.clipboard.writeText){
+          navigator.clipboard.writeText(text).then(markCopied).catch(()=>{
+            const el = document.getElementById("zaloReportText");
+            if(el){ const range=document.createRange(); range.selectNodeContents(el); const sel=window.getSelection(); sel.removeAllRanges(); sel.addRange(range); }
+          });
+        } else {
+          const el = document.getElementById("zaloReportText");
+          if(el){ const range=document.createRange(); range.selectNodeContents(el); const sel=window.getSelection(); sel.removeAllRanges(); sel.addRange(range); document.execCommand("copy"); markCopied(); }
+        }
+        break;
+      }
+    }
+  };
+
+  // field inputs (name/position/note/weeknote) — commit on input, no full rerender needed
+  root.oninput = (e)=>{
+    const t = e.target;
+    if(t.dataset.field==="name"){
+      const p = app.staff.find(x=>x.id===t.dataset.staff); if(p){ p.name=t.value; scheduleSave(); }
+    } else if(t.dataset.field==="position"){
+      const p = app.staff.find(x=>x.id===t.dataset.staff); if(p){ p.position=t.value; scheduleSave(); }
+    } else if(t.dataset.field==="note"){
+      const p = app.staff.find(x=>x.id===t.dataset.staff); if(p){ p.note=t.value; scheduleSave(); }
+    } else if(t.dataset.field==="weeknote"){
+      app.weekNotes[t.dataset.key] = t.value; scheduleSave();
+    } else if(t.dataset.action==="att-field"){
+      const key = attKey(t.dataset.staff, t.dataset.day, t.dataset.idx);
+      app.attendance[key] = {...(app.attendance[key]||{}), [t.dataset.field]: t.value};
+      scheduleSave();
+    } else if(t.id==="cellDraftInput"){
+      app.cellDraft = t.value;
+    }
+  };
+
+  root.onchange = (e)=>{
+    const t = e.target;
+    if(t.dataset.action==="toggle-att"){
+      const key = attKey(t.dataset.staff, t.dataset.day, t.dataset.idx);
+      app.attendance[key] = {...(app.attendance[key]||{}), present: t.checked};
+      scheduleSave();
+    }
+  };
+}
+
+/* ================================================================ */
+/* Export to Excel                                                    */
+/* ================================================================ */
+/* Palette mirrors the on-screen color tokens (see :root vars) so the
+   exported workbook always matches what the person sees in the app. */
+const XLSX_PALETTE = {
+  navy:      "1F4E78",
+  white:     "FFFFFF",
+  border:    "D9D9D9",
+  offBg:     "F2F2F2",
+  offText:   "9CA3AF",
+  zebra:     "F5F8FC",
+  ink:       "262626",
+  muted:     "737373",
+  presentBg: "DCFCE7", presentTx: "15803D",
+  absentBg:  "FEE2E2", absentTx:  "DC2626",
+};
+const TASK_XLSX = {
+  "Scan":      { bg:"DCEBFF", tx:"1D4ED8" },
+  "Xử lý":     { bg:"FFF1DA", tx:"B45309" },
+  "Nhập liệu": { bg:"DCFCE7", tx:"15803D" },
+  "QC":        { bg:"F1E4FF", tx:"7E22CE" },
+};
+const FONT_NAME = "Times New Roman";
+
+function thinBorder(color){
+  const b = { style:"thin", color:{ rgb: color || XLSX_PALETTE.border } };
+  return { top:b, bottom:b, left:b, right:b };
+}
+function setStyle(ws, addr, style){
+  if(!ws[addr]) ws[addr] = { t:"s", v:"" };
+  ws[addr].s = style;
+}
+// Figures out which task dominates a multi-line cell so the whole cell
+// can be tinted with that task's standard color.
+function analyzeCellText(text){
+  if(!text) return { primary:null };
+  const counts = {};
+  text.split("\n").filter(Boolean).forEach(line=>{
+    const { task } = parseSlot(line);
+    if(isKnownTask(task)) counts[task] = (counts[task]||0) + 1;
+  });
+  const tasks = Object.keys(counts).sort((a,b)=>counts[b]-counts[a]);
+  return { primary: tasks[0] || null };
+}
+
+function exportExcel(){
+  const wb = XLSX.utils.book_new();
+
+  // Sheet 1: Tổng hợp
+  const summaryRows = computeSummary(app.staff, app.weekNotes, app.days);
+  const sumHeader = ["Ngày","Ca","Scan","Xử lý","Nhập liệu","QC","Ghi chú"];
+  const sumAOA = [sumHeader];
+  summaryRows.forEach(r=>{
+    sumAOA.push([r.dayLabel.split(" ")[1]||r.dayLabel, r.ca, r.counts.Scan, r.counts["Xử lý"], r.counts["Nhập liệu"], r.counts.QC, r.note]);
+  });
+  const wsSum = XLSX.utils.aoa_to_sheet(sumAOA);
+  wsSum["!cols"] = [{wch:10},{wch:10},{wch:8},{wch:8},{wch:10},{wch:8},{wch:50}];
+  const sumRange = XLSX.utils.decode_range(wsSum["!ref"]);
+  for(let R=sumRange.s.r; R<=sumRange.e.r; R++){
+    for(let C=sumRange.s.c; C<=sumRange.e.c; C++){
+      const addr = XLSX.utils.encode_cell({r:R,c:C});
+      if(!wsSum[addr]) wsSum[addr] = { t:"s", v:"" };
+      const isHeader = R===0;
+      const colName = sumHeader[C];
+      const zebra = R % 2 === 0;
+      let fill, font, align;
+      if(isHeader){
+        fill = { fgColor:{ rgb: XLSX_PALETTE.navy } };
+        font = { bold:true, name:FONT_NAME, sz:12, color:{ rgb: XLSX_PALETTE.white } };
+        align = { horizontal:"center", vertical:"center", wrapText:true };
+      } else if(TASK_XLSX[colName]){
+        const c = TASK_XLSX[colName];
+        const val = wsSum[addr].v;
+        fill = { fgColor:{ rgb: c.bg } };
+        font = { bold: !!val, name:FONT_NAME, sz:12, color:{ rgb: val ? c.tx : XLSX_PALETTE.offText } };
+        align = { horizontal:"center", vertical:"center" };
+      } else if(C===0 || C===1){
+        fill = { fgColor:{ rgb: zebra ? XLSX_PALETTE.zebra : XLSX_PALETTE.white } };
+        font = { bold:true, name:FONT_NAME, sz:12, color:{ rgb: XLSX_PALETTE.ink } };
+        align = { horizontal:"center", vertical:"center" };
+      } else {
+        fill = { fgColor:{ rgb: zebra ? XLSX_PALETTE.zebra : XLSX_PALETTE.white } };
+        font = { name:FONT_NAME, sz:12, color:{ rgb: XLSX_PALETTE.muted } };
+        align = { horizontal:"left", vertical:"center", wrapText:true };
+      }
+      wsSum[addr].s = { font, fill, alignment: align, border: thinBorder() };
+    }
+  }
+  wsSum["!autofilter"] = { ref:"A1:G1" };
+  XLSX.utils.book_append_sheet(wb, wsSum, "Tổng hợp");
+
+  // Sheet 2: schedule grid
+  const startD = app.days[0], endD = app.days[app.days.length-1];
+  const sheetName = `${startD.date.replace("/",".")}_${endD.date.replace("/",".")}`.slice(0,31);
+  const gridHeader = ["STT","Nhân sự","Vị trí phân công (Có thể thay đổi tùy tình hình thực tế)", ...app.days.map(d=>`${d.label} ${d.date}`), "Ghi chú"];
+  const gridAOA = [gridHeader];
+  app.staff.forEach((p,i)=>{
+    const row = [i+1, p.name, p.position];
+    app.days.forEach(d=>{
+      const val = p.days[d.key];
+      row.push(val==="OFF" ? "OFF" : (val||[]).join("\n"));
+    });
+    row.push(p.note||"");
+    gridAOA.push(row);
+  });
+  const wsGrid = XLSX.utils.aoa_to_sheet(gridAOA);
+  wsGrid["!cols"] = [{wch:6},{wch:24},{wch:30}, ...app.days.map(()=>({wch:24})), {wch:32}];
+  const range = XLSX.utils.decode_range(wsGrid["!ref"]);
+  const dayColStart = 3, dayColEnd = 3 + app.days.length - 1;
+  for(let R=range.s.r; R<=range.e.r; R++){
+    const zebra = R % 2 === 0;
+    for(let C=range.s.c; C<=range.e.c; C++){
+      const addr = XLSX.utils.encode_cell({r:R,c:C});
+      if(!wsGrid[addr]) wsGrid[addr] = { t:"s", v:"" };
+      let fill, font, align;
+      if(R===0){
+        fill = { fgColor:{ rgb: XLSX_PALETTE.navy } };
+        font = { bold:true, name:FONT_NAME, sz:12, color:{ rgb: XLSX_PALETTE.white } };
+        align = { horizontal:"center", vertical:"center", wrapText:true };
+      } else if(C===0){
+        fill = { fgColor:{ rgb: zebra ? XLSX_PALETTE.zebra : XLSX_PALETTE.white } };
+        font = { name:FONT_NAME, sz:12, color:{ rgb: XLSX_PALETTE.muted } };
+        align = { horizontal:"center", vertical:"center" };
+      } else if(C===1){
+        fill = { fgColor:{ rgb: zebra ? XLSX_PALETTE.zebra : XLSX_PALETTE.white } };
+        font = { bold:true, name:FONT_NAME, sz:12, color:{ rgb: XLSX_PALETTE.ink } };
+        align = { horizontal:"left", vertical:"center", wrapText:true };
+      } else if(C===2){
+        fill = { fgColor:{ rgb: zebra ? XLSX_PALETTE.zebra : XLSX_PALETTE.white } };
+        font = { italic:true, name:FONT_NAME, sz:12, color:{ rgb: XLSX_PALETTE.muted } };
+        align = { horizontal:"left", vertical:"center", wrapText:true };
+      } else if(C>=dayColStart && C<=dayColEnd){
+        const text = wsGrid[addr].v;
+        if(text === "OFF"){
+          fill = { fgColor:{ rgb: XLSX_PALETTE.offBg } };
+          font = { bold:true, italic:true, name:FONT_NAME, sz:12, color:{ rgb: XLSX_PALETTE.offText } };
+          align = { horizontal:"center", vertical:"center" };
+        } else if(!text){
+          fill = { fgColor:{ rgb: XLSX_PALETTE.white } };
+          font = { name:FONT_NAME, sz:12, color:{ rgb: XLSX_PALETTE.offText } };
+          align = { horizontal:"center", vertical:"center" };
+        } else {
+          const { primary } = analyzeCellText(text);
+          const c = TASK_XLSX[primary];
+          fill = { fgColor:{ rgb: c ? c.bg : XLSX_PALETTE.white } };
+          font = { name:FONT_NAME, sz:12, color:{ rgb: c ? c.tx : XLSX_PALETTE.ink } };
+          align = { horizontal:"left", vertical:"center", wrapText:true };
+        }
+      } else {
+        fill = { fgColor:{ rgb: zebra ? XLSX_PALETTE.zebra : XLSX_PALETTE.white } };
+        font = { name:FONT_NAME, sz:12, color:{ rgb: XLSX_PALETTE.muted } };
+        align = { horizontal:"left", vertical:"center", wrapText:true };
+      }
+      wsGrid[addr].s = { font, fill, alignment: align, border: thinBorder() };
+    }
+  }
+  wsGrid["!autofilter"] = { ref: `A1:${XLSX.utils.encode_col(range.e.c)}1` };
+  wsGrid["!freeze"] = { xSplit: dayColStart, ySplit: 1 };
+  XLSX.utils.book_append_sheet(wb, wsGrid, sheetName);
+
+  // Sheet 3: Chấm công
+  const attHeader = ["Ngày","Nhân sự","Ca làm","Có mặt","Giờ vào thực tế","Giờ ra thực tế"];
+  const attAOA = [attHeader];
+  app.days.forEach(d=>{
+    app.staff.forEach(p=>{
+      const val = p.days[d.key];
+      if(!val || val==="OFF") return;
+      val.forEach((line,idx)=>{
+        const key = attKey(p.id, d.key, idx);
+        const a = app.attendance[key] || {};
+        attAOA.push([`${d.label} ${d.date}`, p.name, line.replace(/\n/g," / "), a.present?"Có":"Chưa", a.in||"", a.out||""]);
+      });
+    });
+  });
+  const wsAtt = XLSX.utils.aoa_to_sheet(attAOA);
+  wsAtt["!cols"] = [{wch:10},{wch:22},{wch:40},{wch:10},{wch:14},{wch:14}];
+  const attRange = XLSX.utils.decode_range(wsAtt["!ref"]);
+  for(let R=attRange.s.r; R<=attRange.e.r; R++){
+    const zebra = R % 2 === 0;
+    for(let C=attRange.s.c; C<=attRange.e.c; C++){
+      const addr = XLSX.utils.encode_cell({r:R,c:C});
+      if(!wsAtt[addr]) wsAtt[addr] = { t:"s", v:"" };
+      let fill, font, align;
+      if(R===0){
+        fill = { fgColor:{ rgb: XLSX_PALETTE.navy } };
+        font = { bold:true, name:FONT_NAME, sz:12, color:{ rgb: XLSX_PALETTE.white } };
+        align = { horizontal:"center", vertical:"center", wrapText:true };
+      } else if(C===3){
+        const val = wsAtt[addr].v;
+        const isPresent = val === "Có";
+        fill = { fgColor:{ rgb: isPresent ? XLSX_PALETTE.presentBg : XLSX_PALETTE.absentBg } };
+        font = { bold:true, name:FONT_NAME, sz:12, color:{ rgb: isPresent ? XLSX_PALETTE.presentTx : XLSX_PALETTE.absentTx } };
+        align = { horizontal:"center", vertical:"center" };
+      } else {
+        fill = { fgColor:{ rgb: zebra ? XLSX_PALETTE.zebra : XLSX_PALETTE.white } };
+        font = { name:FONT_NAME, sz:12, color:{ rgb: XLSX_PALETTE.ink } };
+        align = { horizontal: (C===0||C===4||C===5) ? "center" : "left", vertical:"center", wrapText:true };
+      }
+      wsAtt[addr].s = { font, fill, alignment: align, border: thinBorder() };
+    }
+  }
+  wsAtt["!autofilter"] = { ref:"A1:F1" };
+  XLSX.utils.book_append_sheet(wb, wsAtt, "Chấm công");
+
+  // Sheet 4: Chú giải màu — quick color key so the grid is self-explanatory
+  const legendAOA = [
+    ["Chú giải màu sắc"],
+    [],
+    ["Công việc", "Mô tả"],
+    ["Scan", "Ca quét hồ sơ"],
+    ["Xử lý", "Ca xử lý hồ sơ"],
+    ["Nhập liệu", "Ca nhập liệu dữ liệu"],
+    ["QC", "Ca kiểm tra chất lượng"],
+    ["OFF", "Nhân sự nghỉ trong ngày"],
+  ];
+  const wsLegend = XLSX.utils.aoa_to_sheet(legendAOA);
+  wsLegend["!cols"] = [{wch:16},{wch:32}];
+  wsLegend["!merges"] = [{ s:{r:0,c:0}, e:{r:0,c:1} }];
+  setStyle(wsLegend, "A1", { font:{ bold:true, name:FONT_NAME, sz:14, color:{ rgb: XLSX_PALETTE.navy } }, alignment:{ horizontal:"left", vertical:"center" } });
+  ["A3","B3"].forEach(addr=> setStyle(wsLegend, addr, {
+    font:{ bold:true, name:FONT_NAME, sz:12, color:{ rgb: XLSX_PALETTE.white } },
+    fill:{ fgColor:{ rgb: XLSX_PALETTE.navy } },
+    alignment:{ horizontal:"center", vertical:"center" },
+    border: thinBorder(),
+  }));
+  ["Scan","Xử lý","Nhập liệu","QC"].forEach((task,i)=>{
+    const row = 4 + i;
+    const c = TASK_XLSX[task];
+    setStyle(wsLegend, `A${row}`, { font:{ bold:true, name:FONT_NAME, sz:12, color:{ rgb: c.tx } }, fill:{ fgColor:{ rgb: c.bg } }, alignment:{ horizontal:"center", vertical:"center" }, border: thinBorder() });
+    setStyle(wsLegend, `B${row}`, { font:{ name:FONT_NAME, sz:12, color:{ rgb: XLSX_PALETTE.ink } }, fill:{ fgColor:{ rgb: c.bg } }, alignment:{ horizontal:"left", vertical:"center" }, border: thinBorder() });
+  });
+  setStyle(wsLegend, "A8", { font:{ bold:true, italic:true, name:FONT_NAME, sz:12, color:{ rgb: XLSX_PALETTE.offText } }, fill:{ fgColor:{ rgb: XLSX_PALETTE.offBg } }, alignment:{ horizontal:"center", vertical:"center" }, border: thinBorder() });
+  setStyle(wsLegend, "B8", { font:{ italic:true, name:FONT_NAME, sz:12, color:{ rgb: XLSX_PALETTE.muted } }, fill:{ fgColor:{ rgb: XLSX_PALETTE.offBg } }, alignment:{ horizontal:"left", vertical:"center" }, border: thinBorder() });
+  XLSX.utils.book_append_sheet(wb, wsLegend, "Chú giải màu");
+
+  XLSX.writeFile(wb, `Lich_phan_ca_${startD.date.replace("/","-")}_${endD.date.replace("/","-")}_2026.xlsx`, { cellStyles:true });
+}
+
+/* ================================================================ */
+/* Init                                                               */
+/* ================================================================ */
+(async function init(){
+  const saved = await loadState().catch(()=>null);
+  if(saved){
+    if(saved.staff) app.staff = saved.staff;
+    if(saved.weekNotes) app.weekNotes = saved.weekNotes;
+    if(saved.attendance) app.attendance = saved.attendance;
+    if(saved.days && saved.days.length){ app.days = saved.days; app.attendanceDay = saved.days[0].key; }
+  }
+  app.loaded = true;
+  render();
+})();
+</script>
+</body>
+</html>
