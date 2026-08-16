@@ -248,6 +248,31 @@ async function saveState(state){
   catch(e){ return false; }
 }
 
+// Exports the full app state (staff, days, week notes, attendance) as a
+// downloadable .json file, and lets that same file be re-imported later.
+function downloadBackup(){
+  const startD = app.days[0], endD = app.days[app.days.length-1];
+  const payload = {
+    backupType: "shift-scheduler-backup",
+    version: 1,
+    exportedAt: new Date().toISOString(),
+    staff: app.staff,
+    weekNotes: app.weekNotes,
+    attendance: app.attendance,
+    days: app.days,
+  };
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type:"application/json" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  const dateStamp = startD && endD ? `${startD.date.replace("/","-")}_${endD.date.replace("/","-")}` : new Date().toISOString().slice(0,10);
+  a.href = url;
+  a.download = `Backup_lich_phan_ca_${dateStamp}.json`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
 /* ================================================================ */
 /* App state                                                         */
 /* ================================================================ */
@@ -309,6 +334,9 @@ function render(){
         <div class="header-actions">
           <button class="btn btn-outline" data-action="open-add-day">+ Thêm ngày</button>
           <button class="btn btn-dark" data-action="open-add-staff">+ Thêm nhân sự</button>
+          <button class="btn btn-outline" data-action="download-backup">💾 Tải backup (JSON)</button>
+          <button class="btn btn-outline" data-action="open-restore-file">📂 Khôi phục dữ liệu</button>
+          <input type="file" id="restoreFileInput" accept="application/json,.json" style="display:none" />
           <button class="btn btn-green" data-action="export-excel">⬇ Xuất Excel</button>
         </div>
       </div>
@@ -599,6 +627,21 @@ function renderModal(){
       </div>
     </div>`;
   }
+  if(m.type==="restoreConfirm"){
+    const d = m.data;
+    const dayRange = d.days && d.days.length ? `${d.days[0].date} → ${d.days[d.days.length-1].date}` : "—";
+    return `<div class="overlay" data-action="close-modal">
+      <div class="modal" data-stop>
+        <div class="warn-title"><span>⚠</span><h3>Khôi phục dữ liệu từ file backup?</h3></div>
+        <p>File chứa <b>${d.staff?.length||0} nhân sự</b>, <b>${d.days?.length||0} ngày</b> (${esc(dayRange)}).</p>
+        <p>Toàn bộ dữ liệu hiện tại trên màn hình (lịch phân ca, ghi chú, chấm công) sẽ bị <b>thay thế hoàn toàn</b> bằng dữ liệu trong file này. Hành động không thể hoàn tác.</p>
+        <div class="modal-footer">
+          <button class="btn" data-action="close-modal">Hủy</button>
+          <button class="btn btn-red" data-action="confirm-restore">📂 Khôi phục</button>
+        </div>
+      </div>
+    </div>`;
+  }
   return "";
 }
 
@@ -703,6 +746,22 @@ function attachEvents(){
       }
       case "export-excel":
         exportExcel(); break;
+      case "download-backup":
+        downloadBackup(); break;
+      case "open-restore-file":
+        document.getElementById("restoreFileInput")?.click(); break;
+      case "confirm-restore": {
+        const data = app.modal?.data;
+        if(data){
+          app.staff = Array.isArray(data.staff) ? data.staff : [];
+          app.weekNotes = data.weekNotes && typeof data.weekNotes==="object" ? data.weekNotes : {};
+          app.attendance = data.attendance && typeof data.attendance==="object" ? data.attendance : {};
+          app.days = Array.isArray(data.days) && data.days.length ? data.days : INITIAL_DAYS.slice();
+          app.attendanceDay = app.days[0].key;
+          app.reportDay = app.days[0].key;
+        }
+        app.modal = null; render(); scheduleSave(); break;
+      }
       case "set-report-day":
         app.reportDay = btn.dataset.day; app.zaloCopyStatus = "idle"; render(); break;
       case "copy-zalo-report": {
@@ -745,6 +804,25 @@ function attachEvents(){
 
   root.onchange = (e)=>{
     const t = e.target;
+    if(t.id==="restoreFileInput"){
+      const file = t.files && t.files[0];
+      t.value = "";
+      if(!file) return;
+      const reader = new FileReader();
+      reader.onload = (ev)=>{
+        let data;
+        try{ data = JSON.parse(ev.target.result); }
+        catch(err){ alert("Không đọc được file JSON. Vui lòng kiểm tra lại file backup."); return; }
+        if(!data || !Array.isArray(data.staff) || !Array.isArray(data.days)){
+          alert("File JSON không đúng định dạng backup của Lịch phân ca."); return;
+        }
+        app.modal = { type:"restoreConfirm", data };
+        render();
+      };
+      reader.onerror = ()=> alert("Không thể đọc file. Vui lòng thử lại.");
+      reader.readAsText(file, "utf-8");
+      return;
+    }
     if(t.dataset.action==="toggle-att"){
       const key = attKey(t.dataset.staff, t.dataset.day, t.dataset.idx);
       app.attendance[key] = {...(app.attendance[key]||{}), present: t.checked};
